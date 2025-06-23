@@ -1,11 +1,9 @@
-// src/modules/pulseCalculator.js
-
 /**
- * Рассчитывает пульсовые зоны на основе возраста.
- * Использует формулу максимального пульса: 220 - возраст.
+ * Calculates heart rate zones based on age.
+ * Uses the maximum heart rate formula: 220 - age.
  *
- * @param {number} age - Возраст пользователя.
- * @returns {string} Отформатированный текст с описанием пульсовых зон.
+ * @param {number} age - The user's age.
+ * @returns {string} Formatted text describing the heart rate zones.
  */
 function calculatePulseZones(age) {
   if (typeof age !== 'number' || age <= 0) {
