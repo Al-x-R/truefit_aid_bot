@@ -4,8 +4,9 @@ const { Telegraf, session } = require('telegraf');
 const { message } = require('telegraf/filters');
 const LocalSession = require('telegraf-session-local');
 const { calculatePulseZones } = require('./modules/pulseCalculator');
-const { generateTDEEReport, activityFactors } = require('./modules/tdeeCalculator');
+const { generateTDEEReport } = require('./modules/tdeeCalculator');
 const { getLocale } = require('./utils/i18n');
+const { activityFactors } =require('./utils/constants')
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 

@@ -1,3 +1,5 @@
+const { activityFactors } = require('../utils/constants');
+
 /**
  * Calculates Basal Metabolic Rate (BMR) using the Mifflin-St Jeor formula.
  * @param {string} gender - Gender ('male' or 'female').
@@ -16,20 +18,8 @@ function calculateBMR(gender, age, weight, height) {
   } else if (gender === 'female') {
     return (10 * weight) + (6.25 * height) - (5 * age) - 161;
   }
-  return 0; // На случай некорректного пола, хотя мы будем это валидировать на стороне бота
+  return 0;
 }
-
-/**
- * Physical activity coefficients for TDEE calculation.
- * In the future, these can be moved to src/utils/constants.js
- */
-const activityFactors = {
-  sedentary: 1.2, // Sedentary (little or no exercise)
-  light: 1.375,   // Light activity (1-3 days of light exercise per week)
-  moderate: 1.55, // Moderate activity (3-5 days of moderate exercise per week)
-  high: 1.725,    // High activity (6-7 days of intense exercise per week)
-  very_high: 1.9  // Very high activity (daily very intense workouts, or a physically demanding job)
-};
 
 /**
  * Calculates Total Daily Energy Expenditure (TDEE).
@@ -144,5 +134,4 @@ module.exports = {
   calculateTDEE,
   calculateMacros,
   generateTDEEReport,
-  activityFactors // We export these to use in the bot for buttons
 };
