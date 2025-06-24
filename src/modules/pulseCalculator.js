@@ -6,7 +6,7 @@
  * @param {object} locales - Localization object.
  * @returns {string} Formatted text describing the heart rate zones.
  */
-function calculatePulseZones(age, locales) {
+export const calculatePulseZones = (age, locales) => {
   if (typeof age !== 'number' || age <= 0) {
     return locales.pulse_calc_invalid_age;
   }
@@ -39,6 +39,3 @@ function calculatePulseZones(age, locales) {
   return resultText;
 }
 
-module.exports = {
-  calculatePulseZones
-};

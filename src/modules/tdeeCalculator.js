@@ -1,4 +1,4 @@
-const { activityFactors } = require('../utils/constants');
+import { activityFactors } from '../utils/constants.js';
 
 /**
  * Calculates Basal Metabolic Rate (BMR) using the Mifflin-St Jeor formula.
@@ -8,7 +8,7 @@ const { activityFactors } = require('../utils/constants');
  * @param {number} height - Height in cm.
  * @returns {number} BMR value in calories.
  */
-function calculateBMR(gender, age, weight, height) {
+export const calculateBMR = (gender, weight, height, age) => {
   // Mifflin-St Jeor Formula
   // For men: (10 * weight in kg) + (6.25 * height in cm) - (5 * age in years) + 5
   // For women: (10 * weight in kg) + (6.25 * height in cm) - (5 * age in years) - 161
@@ -27,7 +27,7 @@ function calculateBMR(gender, age, weight, height) {
  * @param {string} activityLevel - Activity level (key from activityFactors).
  * @returns {number} TDEE value in calories.
  */
-function calculateTDEE(bmr, activityLevel) {
+export const calculateTDEE = (bmr, activityLevel) => {
   const factor = activityFactors[activityLevel];
   if (factor) {
     return bmr * factor;
@@ -43,7 +43,7 @@ function calculateTDEE(bmr, activityLevel) {
  * @param {number} weight - User's current weight (for calculating protein and fat per kg).
  * @returns {object} An object with the recommended range of calories and grams for protein, fats, and carbohydrates.
  */
-function calculateMacros(tdee, weight) {
+export const calculateMacros = (tdee, weight) => {
   // Recommendations as percentages of TDEE
   const proteinPct = [0.25, 0.35]; // 25-35%
   const fatPct = [0.20, 0.30];     // 20-30%
@@ -80,7 +80,7 @@ function calculateMacros(tdee, weight) {
  * @param {object} locales - Localization object.
  * @returns {string} Formatted report text.
  */
-function generateTDEEReport(userData, locales) {
+export const generateTDEEReport = (userData, locales) => {
   const { gender, age, weight, height, activityLevel } = userData;
 
   if (!gender || !age || !weight || !height || !activityLevel) {
@@ -129,9 +129,3 @@ function generateTDEEReport(userData, locales) {
   return report;
 }
 
-module.exports = {
-  calculateBMR,
-  calculateTDEE,
-  calculateMacros,
-  generateTDEEReport,
-};

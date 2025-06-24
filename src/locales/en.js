@@ -1,6 +1,4 @@
-// src/locales/en.js
-
-module.exports = {
+export default {
   // --- General messages ---
   greeting: (userName) => userName ? `Hi, ${userName}! I'm TrueFit_AID_Bot – your fitness assistant.` : 'Hi! I\'m TrueFit_AID_Bot – your fitness assistant.',
   description_start_long: 'I can help you with fitness and health calculations:',

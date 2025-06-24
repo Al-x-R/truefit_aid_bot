@@ -1,4 +1,4 @@
-module.exports = {
+export default {
 
   // --- Общие сообщения ---
   greeting: (userName) => userName ? `Привет, ${userName}! Я TrueFit_AID_Bot – ваш помощник в мире фитнеса.` : 'Привет! Я TrueFit_AID_Bot – ваш помощник в мире фитнеса.',
