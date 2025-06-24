@@ -5,6 +5,7 @@ const { message } = require('telegraf/filters');
 const LocalSession = require('telegraf-session-local');
 const { calculatePulseZones } = require('./modules/pulseCalculator');
 const { generateTDEEReport, activityFactors } = require('./modules/tdeeCalculator');
+const { getLocale } = require('./utils/i18n');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -13,6 +14,15 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const localSession = new LocalSession({ database: 'session_db.json' }); // Save sessions to a file
 
 bot.use(localSession.middleware()); // Connecting middleware for sessions
+
+// --- Middleware for language detection ---
+bot.use((ctx, next) => {
+  // If the language is not set in the session, try to get it from the user's Telegram settings
+  // or set the default language
+  ctx.session.lang = ctx.session.lang || ctx.from.language_code || 'ru';
+  ctx.locales = getLocale(ctx.session.lang); // Attach locale to the context
+  return next();
+});
 
 // --- Constants for states ---
 const STATES = {
@@ -24,37 +34,99 @@ const STATES = {
   WAITING_FOR_WEIGHT_TDEE: 'WAITING_FOR_WEIGHT_TDEE',
   WAITING_FOR_HEIGHT_TDEE: 'WAITING_FOR_HEIGHT_TDEE',
   WAITING_FOR_ACTIVITY_TDEE: 'WAITING_FOR_ACTIVITY_TDEE',
+
+  SELECTING_LANGUAGE: 'SELECTING_LANGUAGE'
 };
 
 // /start command handler
 bot.start((ctx) => {
   ctx.session.state = STATES.IDLE;
   const userName = ctx.from.first_name || '';
-  const greetings = userName ? `Привет, ${userName}` : 'Привет';
-  ctx.reply(`${greetings}! Выберите, что вы хотите рассчитать:`, {
+  const locales = ctx.locales;
+
+  let welcomeMessage = locales.greeting(userName) + '\n\n';
+  welcomeMessage += locales.description_start_long || 'Я могу помочь вам с расчетами для фитнеса и здоровья:';
+  welcomeMessage += '\n\n';
+  welcomeMessage += `*${locales.menu_button_pulse_calculator}*: ${locales.pulse_calc_short_desc || 'Рассчитаю ваши персональные пульсовые зоны для эффективных тренировок.'}\n`; // Добавим в локаль
+  welcomeMessage += `*${locales.menu_button_tdee_calculator}*: ${locales.tdee_calc_short_desc || 'Определю вашу норму калорий и макронутриентов для достижения ваших целей (похудение, набор массы, поддержание).'} \n`; // Добавим в локаль
+
+  welcomeMessage += '\n' + locales.select_function;
+
+  ctx.reply(welcomeMessage, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Калькулятор Пульсовых Зон', callback_data: 'calc_pulse_zones' }],
-        [{ text: 'Расчет Калорий и Макронутриентов', callback_data: 'calc_macros_tdee' }]
+        [{ text: locales.menu_button_pulse_calculator, callback_data: 'calc_pulse_zones' }],
+        [{ text: locales.menu_button_tdee_calculator, callback_data: 'calc_macros_tdee' }],
+        [{ text: '🌐 Выбрать язык / Select Language', callback_data: 'select_language' }]
       ]
     }
   });
 });
 
+// --- Handler for the language selection button ---
+bot.action('select_language', (ctx) => {
+  ctx.session.state = STATES.SELECTING_LANGUAGE;
+  ctx.reply('Пожалуйста, выберите язык:\nPlease select a language:', {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: 'Русский 🇷🇺', callback_data: 'lang_ru' }],
+        [{ text: 'English 🇬🇧', callback_data: 'lang_en' }]
+      ]
+    }
+  });
+  ctx.answerCbQuery();
+});
+
+// --- Handler for language selection ---
+bot.action(/lang_(ru|en)/, (ctx) => {
+  const lang = ctx.match[1];
+  ctx.session.lang = lang;
+  ctx.locales = getLocale(lang); // Update locales in context
+  const userName = ctx.from.first_name || '';
+  const locales = ctx.locales;
+
+  let welcomeMessage = locales.greeting(userName) + '\n\n';
+  welcomeMessage += locales.description_start_long || 'Я могу помочь вам с расчетами для фитнеса и здоровья:';
+  welcomeMessage += '\n\n';
+  welcomeMessage += `*${locales.menu_button_pulse_calculator}*: ${locales.pulse_calc_short_desc || 'Рассчитаю ваши персональные пульсовые зоны для эффективных тренировок.'}\n`;
+  welcomeMessage += `*${locales.menu_button_tdee_calculator}*: ${locales.tdee_calc_short_desc || 'Определю вашу норму калорий и макронутриентов для достижения ваших целей (похудение, набор массы, поддержание).'} \n`;
+  welcomeMessage += '\n' + locales.select_function;
+
+  ctx.reply(welcomeMessage, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: ctx.locales.menu_button_pulse_calculator, callback_data: 'calc_pulse_zones' }],
+        [{ text: ctx.locales.menu_button_tdee_calculator, callback_data: 'calc_macros_tdee' }],
+        [{ text: '🌐 Выбрать язык / Select Language', callback_data: 'select_language' }]
+      ]
+    }
+  });
+  ctx.session.state = STATES.IDLE;
+  ctx.answerCbQuery();
+});
+
 // Handler for the "Heart Rate Calculator" button
 bot.action('calc_pulse_zones', (ctx) => {
   ctx.session.state = STATES.WAITING_FOR_AGE_PULSE; // Setting up the age waiting state
-  ctx.reply('Отлично! Для расчета пульсовых зон мне нужен ваш возраст. Введите его, пожалуйста, числом:');
+  ctx.reply(ctx.locales.pulse_calc_start);
+});
+
+bot.action('recalc_pulse_zones', (ctx) => {
+  const locales = ctx.locales;
+  ctx.session.state = STATES.WAITING_FOR_AGE_PULSE;
+  ctx.reply(locales.pulse_calc_start);
+  ctx.answerCbQuery();
 });
 
 // Handler for the "Calculate Calories and Macronutrients" button
 bot.action('calc_macros_tdee', (ctx) => {
+  const locales = ctx.locales;
   ctx.session.state = STATES.WAITING_FOR_GENDER_TDEE; // Set the first state for TDEE
-  ctx.reply('Хорошо! Для начала, выберите ваш пол:', {
+  ctx.reply(locales.tdee_calc_start, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Мужской', callback_data: 'gender_male' }],
-        [{ text: 'Женский', callback_data: 'gender_female' }]
+        [{ text: locales.tdee_calc_gender_male_button, callback_data: 'gender_male' }],
+        [{ text: locales.tdee_calc_gender_female_button, callback_data: 'gender_female' }]
       ]
     }
   });
@@ -63,12 +135,13 @@ bot.action('calc_macros_tdee', (ctx) => {
 
 // --- New handler for the "Make a new Calorie/Macro calculation" button" ---
 bot.action('recalc_macros_tdee', (ctx) => {
+  const locales = ctx.locales;
   ctx.session.state = STATES.WAITING_FOR_GENDER_TDEE;
-  ctx.reply('Хорошо, давайте сделаем новый расчет! Выберите ваш пол:', {
+  ctx.reply(locales.tdee_calc_start, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Мужской', callback_data: 'gender_male' }],
-        [{ text: 'Женский', callback_data: 'gender_female' }]
+        [{ text: locales.tdee_calc_gender_male_button, callback_data: 'gender_male' }],
+        [{ text: locales.tdee_calc_gender_female_button, callback_data: 'gender_female' }]
       ]
     }
   });
@@ -77,13 +150,13 @@ bot.action('recalc_macros_tdee', (ctx) => {
 
 // --- Gender Selection Handlers for TDEE ---
 bot.action(/gender_(male|female)/, (ctx) => { // Regular expression for male or female
-  console.log('ctx', ctx);
+  const locales = ctx.locales;
   const gender = ctx.match[1]; // Get 'male' or 'female' from callback_data
   ctx.session.tdeeData = ctx.session.tdeeData || {}; // Initialize an object to store TDEE data
   ctx.session.tdeeData.gender = gender;
   ctx.session.state = STATES.WAITING_FOR_AGE_TDEE; // Let's move on to the next state
 
-  ctx.editMessageText(`Вы выбрали: *${gender === 'male' ? 'Мужской' : 'Женский'}*.\nТеперь введите ваш возраст (в годах):`, {
+  ctx.reply(locales.tdee_calc_gender_selected(gender), {
     parse_mode: 'Markdown'
   });
   ctx.answerCbQuery();
@@ -92,23 +165,29 @@ bot.action(/gender_(male|female)/, (ctx) => { // Regular expression for male or 
 // --- Processing text messages (core logic for receiving data) ---
 bot.on(message('text'), (ctx) => {
   const currentState = ctx.session.state || STATES.IDLE;
+  const locales = ctx.locales;
+
+  if (ctx.message.text.startsWith('/')) {
+    return;
+  }
+
   switch (currentState) {
     case STATES.WAITING_FOR_AGE_PULSE:
       const age = parseInt(ctx.message.text);
       if (!isNaN(age) && age > 0 && age < 120) {
-        const result = calculatePulseZones(age);
+        const result = calculatePulseZones(age, locales);
         ctx.reply(result, {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: 'Сделать новый расчет пульсовых зон', callback_data: 'calc_pulse_zones' }],
-              [{ text: 'Вернуться в главное меню', callback_data: 'main_menu' }]
+              [{ text: locales.pulse_calc_recalc_button, callback_data: 'recalc_pulse_zones' }],
+              [{ text: locales.main_menu_button, callback_data: 'main_menu' }]
             ]
           }
         });
         ctx.session.state = STATES.IDLE;
       } else {
-        ctx.reply('Пожалуйста, введите корректный возраст (целое число от 1 до 119).');
+        ctx.reply(locales.pulse_calc_invalid_age);
       }
       break;
 
@@ -117,9 +196,9 @@ bot.on(message('text'), (ctx) => {
       if (!isNaN(ageTDEE) && ageTDEE > 0 && ageTDEE < 120) {
         ctx.session.tdeeData.age = ageTDEE;
         ctx.session.state = STATES.WAITING_FOR_WEIGHT_TDEE;
-        ctx.reply('Отлично! Теперь введите ваш вес (в килограммах, например, 75.5):');
+        ctx.reply(locales.tdee_calc_ask_weight);
       } else {
-        ctx.reply('Пожалуйста, введите корректный возраст (целое число от 1 до 119) для расчета TDEE.');
+        ctx.reply(locales.tdee_calc_invalid_age);
       }
       break;
 
@@ -128,9 +207,9 @@ bot.on(message('text'), (ctx) => {
       if (!isNaN(weightTDEE) && weightTDEE > 0 && weightTDEE < 300) {
         ctx.session.tdeeData.weight = weightTDEE;
         ctx.session.state = STATES.WAITING_FOR_HEIGHT_TDEE;
-        ctx.reply('Принято! Теперь введите ваш рост (в сантиметрах, например, 170):');
+        ctx.reply(locales.tdee_calc_ask_height);
       } else {
-        ctx.reply('Пожалуйста, введите корректный вес (число, например, 75.5) для расчета TDEE.');
+        ctx.reply(locales.tdee_calc_invalid_weight);
       }
       break;
 
@@ -143,27 +222,32 @@ bot.on(message('text'), (ctx) => {
         const activityKeyboard = Object.keys(activityFactors).map(key => {
           let text = '';
           switch(key) {
-            case 'sedentary': text = 'Малоподвижный (очень мало или нет упражнений)'; break;
-            case 'light': text = 'Легкая (1-3 дня/нед.)'; break;
-            case 'moderate': text = 'Умеренная (3-5 дней/нед.)'; break;
-            case 'high': text = 'Высокая (6-7 дней/нед.)'; break;
-            case 'very_high': text = 'Очень высокая (ежедневно интенсивная)'; break;
+            case 'sedentary': text = locales.activity_level_sedentary; break;
+            case 'light': text = locales.activity_level_light; break;
+            case 'moderate': text = locales.activity_level_moderate; break;
+            case 'high': text = locales.activity_level_high; break;
+            case 'very_high': text = locales.activity_level_very_high; break;
           }
           return [{ text: text, callback_data: `activity_${key}` }];
         });
-        ctx.reply('Отлично! И последний шаг: выберите ваш уровень физической активности:', {
+        ctx.reply(locales.tdee_calc_ask_activity, {
           reply_markup: {
             inline_keyboard: activityKeyboard
           }
         });
       } else {
-        ctx.reply('Пожалуйста, введите корректный рост (целое число от 1 до 249) для расчета TDEE.');
+        ctx.reply(locales.tdee_calc_invalid_height);
       }
       break;
 
     case STATES.IDLE:
+      if (!ctx.message.text.startsWith('/')) {
+        ctx.reply(locales.unknown_command);
+      }
+      break;
     default:
-      ctx.reply('Я не понял вашу команду. Пожалуйста, выберите функцию из меню или используйте /start.');
+      ctx.reply(locales.internal_error);
+      ctx.session.state = STATES.IDLE;
       break;
   }
 });
@@ -183,43 +267,49 @@ bot.action('start_over', (ctx) => {
 });
 
 
-// --- Handler for button "Вернуться в главное меню" ---
+// --- Handler for button "Back to main menu" ---
 bot.action('main_menu', (ctx) => {
+  const userName = ctx.from.first_name || '';
+  const locales = ctx.locales;
+
   ctx.session.state = STATES.IDLE;
-  ctx.reply('Выберите, что вы хотите рассчитать:', {
+  ctx.reply(`${locales.greeting(userName)} ${locales.select_function}`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Калькулятор Пульсовых Зон', callback_data: 'calc_pulse_zones' }],
-        [{ text: 'Расчет Калорий и Макронутриентов', callback_data: 'calc_macros_tdee' }]
+        [{ text: locales.menu_button_pulse_calculator, callback_data: 'calc_pulse_zones' }],
+        [{ text: locales.menu_button_tdee_calculator, callback_data: 'calc_macros_tdee' }],
+        [{ text: '🌐 Выбрать язык / Select Language', callback_data: 'select_language' }]
       ]
     }
   });
+  ctx.answerCbQuery();
 });
 
 // --- Activity Level Selection Handlers for TDEE ---
 bot.action(/activity_(.+)/, (ctx) => { // Regular expression for any activity key
+  const locales = ctx.locales;
   const activityLevel = ctx.match[1];
   if (activityFactors[activityLevel]) { // Check that the activity level is valid
     ctx.session.tdeeData.activityLevel = activityLevel;
     const userData = ctx.session.tdeeData;
 
     // Generate a report
-    const report = generateTDEEReport(userData);
+    const report = generateTDEEReport(userData, locales);
 
     // We send a report and propose further actions
     ctx.reply(report, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Сделать новый расчет Калорий/Макросов', callback_data: 'recalc_macros_tdee' }],
-          [{ text: 'Вернуться в главное меню', callback_data: 'main_menu' }]
+          [{ text: locales.tdee_calc_recalc_button, callback_data: 'recalc_macros_tdee' }],
+          [{ text: locales.main_menu_button, callback_data: 'main_menu' }]
         ]
       }
     });
     ctx.session.state = STATES.IDLE; // Resetting the state
     delete ctx.session.tdeeData; // Clearing TDEE data after calculation
   } else {
-    ctx.reply('Пожалуйста, выберите корректный уровень активности из предложенных вариантов.');
+    ctx.reply(locales.tdee_calc_invalid_activity);
   }
   ctx.answerCbQuery();
 });

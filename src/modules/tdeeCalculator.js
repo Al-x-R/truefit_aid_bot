@@ -87,44 +87,54 @@ function calculateMacros(tdee, weight) {
 /**
  * Generates a full report on TDEE and macronutrients.
  * @param {object} userData - Object with user data (gender, age, weight, height, activityLevel).
+ * @param {object} locales - Localization object.
  * @returns {string} Formatted report text.
  */
-function generateTDEEReport(userData) {
+function generateTDEEReport(userData, locales) {
   const { gender, age, weight, height, activityLevel } = userData;
 
   if (!gender || !age || !weight || !height || !activityLevel) {
-    return 'Недостаточно данных для расчета TDEE и макронутриентов. Пожалуйста, начните сначала.';
+    return locales.tdee_calc_insufficient_data;
   }
 
   const bmr = calculateBMR(gender, age, weight, height);
   const tdee = calculateTDEE(bmr, activityLevel);
   const macros = calculateMacros(tdee, weight);
 
-  let report = `*Ваш расчет калорий и макронутриентов:*\n\n`;
-  report += `Расчет произведен по *формуле Миффлина-Сан-Жеора*.\n`;
-  report += `Пол: ${gender === 'male' ? 'Мужской' : 'Женский'}\n`;
-  report += `Возраст: ${age} лет\n`;
-  report += `Вес: ${weight} кг\n`;
-  report += `Рост: ${height} см\n`;
-  report += `Уровень активности: ${Object.keys(activityFactors).find(key => activityFactors[key] === activityFactors[activityLevel])} \n`; // Просто для отображения, можно улучшить
+  let activityLevelText = '';
+  switch(activityLevel) {
+    case 'sedentary': activityLevelText = locales.activity_level_sedentary; break;
+    case 'light': activityLevelText = locales.activity_level_light; break;
+    case 'moderate': activityLevelText = locales.activity_level_moderate; break;
+    case 'high': activityLevelText = locales.activity_level_high; break;
+    case 'very_high': activityLevelText = locales.activity_level_very_high; break;
+  }
 
-  report += `\n*Ваш Базальный Метаболизм (BMR):* ${Math.round(bmr)} ккал/день\n`;
-  report += `_Это количество калорий, необходимое для поддержания основных жизненных функций в состоянии покоя._\n`;
-  report += `\n*Ваши Общие Суточные Энергозатраты (TDEE):* ${Math.round(tdee)} ккал/день\n`;
-  report += `_Это количество калорий, которое вы сжигаете в день с учетом вашей физической активности._\n`;
+  let report = locales.tdee_report_title;
+  report += locales.tdee_report_formula_used;
+  report += locales.tdee_report_gender(gender);
+  report += locales.tdee_report_age(age);
+  report += locales.tdee_report_weight(weight);
+  report += locales.tdee_report_height(height);
+  report += locales.tdee_report_activity_level(activityLevelText);
 
-  report += `\n*Рекомендации по макронутриентам:*\n`;
-  report += `  *Белки:* ${macros.protein.minG}-${macros.protein.maxG} г (${macros.protein.minCal}-${macros.protein.maxCal} ккал)\n`;
-  report += `  *Жиры:* ${macros.fat.minG}-${macros.fat.maxG} г (${macros.fat.minCal}-${macros.fat.maxCal} ккал)\n`;
-  report += `  *Углеводы:* ${macros.carbs.minG}-${macros.carbs.maxG} г (${macros.carbs.minCal}-${macros.carbs.maxCal} ккал)\n`;
+  report += locales.tdee_report_bmr(bmr);
+  report += locales.tdee_report_bmr_note;
+  report += locales.tdee_report_tdee(tdee);
+  report += locales.tdee_report_tdee_note;
 
-  report += `\n*Как использовать эти цифры?*\n`;
-  report += `  - *Для поддержания веса:* Придерживайтесь TDEE ${Math.round(tdee)} ккал.\n`;
-  report += `  - *Для похудения:* Создайте дефицит 200-500 ккал от TDEE (цель: ${Math.round(tdee - 350)} ккал).\n`; // Среднее значение
-  report += `  - *Для набора мышечной массы:* Создайте профицит 200-500 ккал к TDEE (цель: ${Math.round(tdee + 350)} ккал).\n`;
+  report += locales.tdee_report_macros_header;
+  report += locales.tdee_report_protein(macros.protein.minG, macros.protein.maxG, macros.protein.minCal, macros.protein.maxCal);
+  report += locales.tdee_report_fat(macros.fat.minG, macros.fat.maxG, macros.fat.minCal, macros.fat.maxCal);
+  report += locales.tdee_report_carbs(macros.carbs.minG, macros.carbs.maxG, macros.carbs.minCal, macros.carbs.maxCal);
 
-  report += '\n_Помните, это базовые рекомендации. Индивидуальные потребности могут отличаться._';
-  report += '\n\n*Хотите глубже разобраться в питании и макросах?* Читайте наш пост: [Макронутриенты: Гид](https://t.me/YOUR_CHANNEL_NAME/POST_NUMBER_MACROS)'; // Placeholder
+  report += locales.tdee_report_how_to_use;
+  report += locales.tdee_report_maintain_weight(tdee);
+  report += locales.tdee_report_lose_weight(tdee);
+  report += locales.tdee_report_gain_weight(tdee);
+
+  report += locales.tdee_report_note;
+  report += `\n\n${locales.tdee_report_article_link}`;
 
   return report;
 }

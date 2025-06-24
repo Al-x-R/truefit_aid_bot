@@ -3,38 +3,38 @@
  * Uses the maximum heart rate formula: 220 - age.
  *
  * @param {number} age - The user's age.
+ * @param {object} locales - Localization object.
  * @returns {string} Formatted text describing the heart rate zones.
  */
-function calculatePulseZones(age) {
+function calculatePulseZones(age, locales) {
   if (typeof age !== 'number' || age <= 0) {
-    return 'Пожалуйста, введите корректный возраст (положительное число).';
+    return locales.pulse_calc_invalid_age;
   }
 
-  const maxHR = 220 - age; // Формула 220 - возраст
+  const maxHR = 220 - age;
 
-  // Определение пульсовых зон
+
   const zones = [
-    { name: 'Зона Здоровья / Восстановления', range: [0.50, 0.60], purpose: 'Легкие нагрузки, разминка, заминка, улучшение кровообращения.' },
-    { name: 'Зона Сжигания Жира', range: [0.60, 0.70], purpose: 'Эффективное жиросжигание, повышение общей выносливости.' },
-    { name: 'Аэробная Зона', range: [0.70, 0.80], purpose: 'Развитие кардиоваскулярной системы, улучшение выносливости.' },
-    { name: 'Анаэробная Зона', range: [0.80, 0.90], purpose: 'Развитие скорости и анаэробной выносливости, интервальные тренировки.' },
-    { name: 'Красная Зона (Максимальная)', range: [0.90, 1.00], purpose: 'Максимальные усилия, очень короткие интервалы, только для подготовленных.' }
+    { name: locales.pulse_calc_zone_health_recovery_name || 'Зона Здоровья / Восстановления', range: [0.50, 0.60], purposeKey: 'pulse_calc_zone_health_recovery_purpose' },
+    { name: locales.pulse_calc_zone_fat_burn_name || 'Зона Сжигания Жира', range: [0.60, 0.70], purposeKey: 'pulse_calc_zone_fat_burn_purpose' },
+    { name: locales.pulse_calc_zone_aerobic_name || 'Аэробная Зона', range: [0.70, 0.80], purposeKey: 'pulse_calc_zone_aerobic_purpose' },
+    { name: locales.pulse_calc_zone_anaerobic_name || 'Анаэробная Зона', range: [0.80, 0.90], purposeKey: 'pulse_calc_zone_anaerobic_purpose' },
+    { name: locales.pulse_calc_zone_maximal_name || 'Красная Зона (Максимальная)', range: [0.90, 1.00], purposeKey: 'pulse_calc_zone_maximal_purpose' }
   ];
 
-  let resultText = `*Расчет пульсовых зон для возраста ${age} лет:*\n\n`;
-  resultText += `Ваш примерный максимальный пульс (MaxHR), рассчитанный *по формуле Фокса, Хаскелла и Девиса* (220 - возраст), составляет: *${maxHR} ударов/мин*.\n\n`;
-  resultText += `---Ваши пульсовые зоны---\n`;
+  let resultText = locales.pulse_calc_report_title(age);
+  resultText += locales.pulse_calc_maxhr_formula(maxHR);
+  resultText += locales.pulse_calc_zones_header;
 
   zones.forEach(zone => {
     const minPulse = Math.round(maxHR * zone.range[0]);
     const maxPulse = Math.round(maxHR * zone.range[1]);
-    resultText += `\n*${zone.name} (${Math.round(zone.range[0]*100)}-${Math.round(zone.range[1]*100)}% MaxHR)*\n`;
-    resultText += `Диапазон пульса: *${minPulse}-${maxPulse} ударов/мин*\n`;
-    resultText += `Назначение: _${zone.purpose}_\n`;
+    const percentage = `${Math.round(zone.range[0]*100)}-${Math.round(zone.range[1]*100)}`;
+    resultText += locales.pulse_calc_zone_item(zone.name, percentage, minPulse, maxPulse, locales[zone.purposeKey]);
   });
 
-  resultText += '\n_Примечание: Это расчет по стандартной формуле. Ваш индивидуальный MaxHR может отличаться._';
-  resultText += '\n\n*Хотите узнать больше о тренировках по пульсовым зонам?* Читайте нашу статью: [Ссылка на статью о пульсовых зонах в Telegraph]'; // placeholder
+  resultText += locales.pulse_calc_note;
+  resultText += `\n\n${locales.pulse_calc_article_link}`;
 
   return resultText;
 }
