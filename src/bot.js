@@ -2,47 +2,60 @@ import 'dotenv/config';
 
 import { session, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
-//const LocalSession = require('telegraf-session-local');
+import { Redis } from '@telegraf/session/redis';
+import { createClient } from 'redis';
+
 import { calculatePulseZones } from './modules/pulseCalculator.js';
 import { generateTDEEReport } from './modules/tdeeCalculator.js';
 import { getLocale } from './utils/i18n.js';
 import { activityFactors, STATES } from './utils/constants.js';
 
-import { Redis } from '@telegraf/session/redis';
-import { createClient } from 'redis';
-
-
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Initialize session (will store data in memory by default)
-// For production, it is better to use storage like Redis/Mongo
-//const localSession = new LocalSession({ database: 'session_db.json' }); // Save sessions to a file
-
-//bot.use(localSession.middleware()); // Connecting middleware for sessions
+console.log('DEBUG: process.env.REDIS_HOST:', process.env.REDIS_HOST);
+console.log('DEBUG: process.env.REDIS_PORT:', process.env.REDIS_PORT);
+console.log('DEBUG: process.env.REDIS_DB:', process.env.REDIS_DB);
+console.log('DEBUG: process.env.REDIS_PASSWORD (present):', !!process.env.REDIS_PASSWORD);
 
 const redisClient = createClient({
-  url: `redis://${process.env.REDIS_PASSWORD ? `:${process.env.REDIS_PASSWORD}@` : ''}${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}/${process.env.REDIS_DB || 0}`
+  socket: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  },
+  password: process.env.REDIS_PASSWORD || undefined,
+  database: parseInt(process.env.REDIS_DB || '0', 10),
 });
 
-redisClient.on('connect', () => console.log('Redis client connected! (via redis package)'));
-redisClient.on('error', (err) => console.error('Redis Client Error (redis package):', err));
+redisClient.on('connect', () => console.log('Redis client: Successfully attempting to connect...'));
+redisClient.on('ready', () => console.log('Redis client: Connection established and ready for commands.'));
+redisClient.on('error', (err) => console.error('Redis client: Connection error:', err));
+redisClient.on('end', () => console.log('Redis client: Connection ended.'));
+redisClient.on('reconnecting', () => console.log('Redis client: Reconnecting...'));
+
+const store = Redis({
+  client: redisClient, // <--- We pass our already configured redisClient
+});
+
+bot.use(session({
+  store: store, // <--- We transfer the configured storage
+}));
 
 (async () => {
   try {
-    await redisClient.connect();
+
+    bot.launch();
+    console.log('The bot is launched and ready to work!');
+
   } catch (error) {
-    console.error('Failed to connect to Redis:', error);
-    // В продакшене здесь можно завершить работу приложения или предпринять другие действия
+    console.error('Failed to launch bot:', error);
+    process.exit(1);
   }
 })();
 
-bot.use(
-  session({
-    store: Redis(redisClient), // <-- Здесь используем Redis из '@telegraf/session/redis'
-    ttl: 3600 // Время жизни сессии в секундах (1 час)
-  })
-);
+bot.catch((err, ctx) => {
+  console.error(`Telegraf error for update ${ctx.update?.update_id || 'N/A'}:`, err);
+});
 
 
 // --- Middleware for language detection ---
@@ -66,8 +79,8 @@ bot.start((ctx) => {
   let welcomeMessage = locales.greeting(userName) + '\n\n';
   welcomeMessage += locales.description_start_long || 'Я могу помочь вам с расчетами для фитнеса и здоровья:';
   welcomeMessage += '\n\n';
-  welcomeMessage += `*${locales.menu_button_pulse_calculator}*: ${locales.pulse_calc_short_desc || 'Рассчитаю ваши персональные пульсовые зоны для эффективных тренировок.'}\n`; // Добавим в локаль
-  welcomeMessage += `*${locales.menu_button_tdee_calculator}*: ${locales.tdee_calc_short_desc || 'Определю вашу норму калорий и макронутриентов для достижения ваших целей (похудение, набор массы, поддержание).'} \n`; // Добавим в локаль
+  welcomeMessage += `*${locales.menu_button_pulse_calculator}*: ${locales.pulse_calc_short_desc || 'Рассчитаю ваши персональные пульсовые зоны для эффективных тренировок.'}\n`;
+  welcomeMessage += `*${locales.menu_button_tdee_calculator}*: ${locales.tdee_calc_short_desc || 'Определю вашу норму калорий и макронутриентов для достижения ваших целей (похудение, набор массы, поддержание).'} \n`;
 
   welcomeMessage += '\n' + locales.select_function;
 
@@ -274,12 +287,13 @@ bot.on(message('text'), (ctx) => {
 // --- handler for the "start_over" button ---
 // the handler will be triggered when the user clicks "Сделать новый расчет" or "Вернуться в главное меню"
 bot.action('start_over', (ctx) => {
+  const locales = ctx.locales; // Получаем локали из контекста
   ctx.session.state = STATES.IDLE; // Resetting the state
-  ctx.reply('Выберите, что вы хотите рассчитать:', {
+  ctx.reply(locales.select_function, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Калькулятор Пульсовых Зон', callback_data: 'calc_pulse_zones' }],
-        [{ text: 'Расчет Калорий и Макронутриентов', callback_data: 'calc_macros_tdee' }]
+        [{ text: locales.menu_button_pulse_calculator, callback_data: 'calc_pulse_zones' }],
+        [{ text: locales.menu_button_tdee_calculator, callback_data: 'calc_macros_tdee' }]
       ]
     }
   });
@@ -333,45 +347,20 @@ bot.action(/activity_(.+)/, (ctx) => { // Regular expression for any activity ke
   ctx.answerCbQuery();
 });
 
+bot.catch((err, ctx) => {
+  console.error(`Ooops, encountered an error for ${ctx.update.update_id}:`, err);
+});
 
-// Launching the bot
-//bot.launch();
-
-console.log('Бот запущен!');
-console.log('Попытка подключения к Redis по адресу:', process.env.REDIS_HOST || 'localhost', ':', process.env.REDIS_PORT || 6379);
-
-// Turn on graceful stop
-//process.once('SIGINT', () => bot.stop('SIGINT'));
-//process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-(async () => {
-  try {
-    await bot.launch();
-    console.log('Бот запущен!');
-    console.log('Попытка подключения к Redis по адресу:', process.env.REDIS_HOST || 'localhost', ':', process.env.REDIS_PORT || 6379);
-
-    // Обработчики завершения работы
-    process.once('SIGINT', async () => {
-      console.log('SIGINT received. Stopping bot...');
-      await bot.stop('SIGINT');
-      await redisClient.quit(); // Закрываем соединение с redisClient
-      console.log('Bot and Redis stopped.');
-      process.exit(0);
-    });
-    process.once('SIGTERM', async () => {
-      console.log('SIGTERM received. Stopping bot...');
-      await bot.stop('SIGTERM');
-      await redisClient.quit(); // Закрываем соединение с redisClient
-      console.log('Bot and Redis stopped.');
-      process.exit(0);
-    });
-
-  } catch (error) {
-    console.error('Failed to start bot:', error);
-    if (error.code === 'ECONNREFUSED' || error.message.includes('connect ECONNREFUSED')) {
-      console.error('Check if Redis server is running and accessible at', process.env.REDIS_HOST || 'localhost', ':', process.env.REDIS_PORT || 6379);
-      console.error('On macOS/Windows with Docker, try REDIS_HOST="host.docker.internal" in your .env or docker run command.');
-    }
-    process.exit(1);
-  }
-})();
+// Enable graceful stop
+process.once('SIGINT', async () => {
+  console.log('Received SIGINT. Stopping bot...');
+  await bot.stop('SIGINT');
+  await redisClient.quit(); // Close the Redis connection after stopping the bot
+  console.log('Bot and Redis client gracefully stopped.');
+});
+process.once('SIGTERM', async () => {
+  console.log('Received SIGTERM. Stopping bot...');
+  await bot.stop('SIGTERM');
+  await redisClient.quit(); // Close the Redis connection after stopping the bot
+  console.log('Bot and Redis client gracefully stopped.');
+});

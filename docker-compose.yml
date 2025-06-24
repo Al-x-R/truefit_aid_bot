@@ -1,0 +1,46 @@
+# docker-compose.yml
+
+services:
+  # Сервис Redis
+  redis:
+    image: redis:7-alpine # Используем стабильный и легковесный образ Redis
+    container_name: truefit_aid_bot-redis # Явно задаем имя контейнера
+    restart: always # Всегда перезапускать, если упал
+    ports:
+      - "6379:6379" # Пробрасываем порт Redis на хост-машину
+    volumes:
+      - redis_data:/data # Сохраняем данные Redis в постоянный том
+    command: redis-server --appendonly yes # Включаем AOF для сохранения данных
+    healthcheck: # Проверка готовности Redis к работе
+      test: ["CMD", "redis-cli", "ping"] # Команда для проверки (пингуем Redis)
+      interval: 1s # Интервал проверки
+      timeout: 3s # Таймаут для ответа
+      retries: 30 # Количество попыток перед тем как пометить как unhealthy
+    networks:
+      - bot_network # Подключаем к нашей кастомной сети
+
+  # Сервис бота
+  bot:
+    build: . # Собирать образ из текущей директории (где Dockerfile)
+    container_name: truefit_aid_bot-bot # Явно задаем имя контейнера
+    restart: always # Всегда перезапускать, если упал
+    environment: # Переменные окружения для бота
+      - BOT_TOKEN=${BOT_TOKEN} # Берется из .env файла
+      - REDIS_HOST=redis # Имя сервиса Redis в Docker Compose сети
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      # - REDIS_PASSWORD=${REDIS_PASSWORD} # Раскомментируйте, если используете пароль Redis
+    depends_on:
+      redis:
+        condition: service_healthy # Ждем, пока Redis будет полностью готов (пройдет healthcheck)
+    networks:
+      - bot_network # Подключаем к той же кастомной сети
+
+# Тома для сохранения данных
+volumes:
+  redis_data:
+
+# Явное определение сетей
+networks:
+  bot_network:
+    driver: bridge # Используем стандартный драйвер моста Docker
