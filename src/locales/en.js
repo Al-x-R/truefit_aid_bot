@@ -24,7 +24,7 @@ export default {
     `Pulse range: *${minPulse}-${maxPulse} beats/min*\n` +
     `Purpose: _${purpose}_\n`,
   pulse_calc_note: '_Note: This is a standard formula calculation. Your individual MaxHR may vary._',
-  pulse_calc_article_link: '*Want to learn more about heart rate zone training?* Read our post: [Heart Rate Zone Training Guide](https://t.me/YOUR_CHANNEL_NAME/POST_NUMBER_EN)', // REPLACE LINK
+  pulse_calc_article_link: '*Want to learn more about heart rate zone training?* Read our post: [Heart Rate Zone Training Guide](https://t.me/c/2595026988/20)',
 
   // NEW KEYS FOR HEART RATE ZONE PURPOSES:
   pulse_calc_zone_health_recovery_name: 'Health / Recovery Zone',
@@ -83,5 +83,5 @@ export default {
   tdee_report_lose_weight: (tdee) => `  - *For weight loss:* Create a deficit of 200-500 kcal from TDEE (target: ${Math.round(tdee - 350)} kcal).\n`,
   tdee_report_gain_weight: (tdee) => `  - *For muscle gain:* Create a surplus of 200-500 kcal to TDEE (target: ${Math.round(tdee + 350)} kcal).\n`,
   tdee_report_note: '_Remember, these are basic recommendations. Individual needs may vary._',
-  tdee_report_article_link: '*Want to dive deeper into nutrition and macros?* Read our post: [Macronutrients: A Guide](https://t.me/YOUR_CHANNEL_NAME/POST_NUMBER_MACROS_EN)' // REPLACE LINK
+  tdee_report_article_link: '*Want to dive deeper into nutrition and macros?* Read our post: [Macronutrients: A Guide](https://t.me/c/2595026988/21)' // REPLACE LINK
 };
