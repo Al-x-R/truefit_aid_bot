@@ -8,4 +8,6 @@ RUN npm ci --only=production
 
 COPY . .
 
-CMD [ "npm", "start" ]
+CMD ["node", "src/bot.js"]
+
+EXPOSE 8080

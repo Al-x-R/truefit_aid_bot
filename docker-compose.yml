@@ -29,7 +29,7 @@ services:
       - REDIS_HOST=redis # Имя сервиса Redis в Docker Compose сети
       - REDIS_PORT=6379
       - REDIS_DB=0
-      # - REDIS_PASSWORD=${REDIS_PASSWORD} # Раскомментируйте, если используете пароль Redis
+#      - REDIS_PASSWORD=${REDIS_PASSWORD} # Раскомментируйте, если используете пароль Redis
     depends_on:
       redis:
         condition: service_healthy # Ждем, пока Redis будет полностью готов (пройдет healthcheck)
